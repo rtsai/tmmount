@@ -1,0 +1,47 @@
+#!/bin/bash
+
+if [ $(id -u) -ne 0 ]; then
+  exec sudo $0 "$@"
+fi
+
+MNTPT="$1"
+MNTPT=$(echo $MNTPT | sed -e 's#/*$##')
+
+TMFS="${2:-$MNTPT.tmfs}"
+TMFS=$(echo $TMFS | sed -e 's#/*$##')
+
+DMGFS="${3:-$(dirname $TMFS)/$(basename $TMFS .tmfs).dmgfs}"
+DMGFS=$(echo $DMGFS | sed -e 's#/*$##')
+
+DMG="$DMGFS/sparsebundle.dmg"
+
+usage() {
+  echo "Usage: $0 MNTPT"
+  echo "Example: $0 /mnt/rabbit"
+}
+
+echodo() {
+  echo "$ $@"
+  $@
+}
+
+if [ -n "$(ls -1 $MNTPT)" ]; then
+  echodo fusermount -u $MNTPT
+fi
+
+MOUNTED=$(mount | grep "^/dev/loop[0-9]* on $TMFS type hfsplus (ro)")
+if [ -n "$MOUNTED" ]; then
+  echodo umount $TMFS
+  LOOPDEVS=$(echo $MOUNTED | cut -f1 -d' ')
+fi
+if [ -z "$LOOPDEVS" ]; then
+  LOOPDEVS=$(losetup -j "$DMG" | cut -f1 -d: | xargs echo)
+fi
+
+if [ -n "$LOOPDEVS" ]; then
+  echodo losetup -d $LOOPDEVS
+fi
+
+if [ -e "$DMG" ]; then
+  echodo fusermount -u $DMGFS
+fi

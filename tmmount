@@ -1,0 +1,107 @@
+#!/bin/bash
+
+if [ $(id -u) -ne 0 ]; then
+  exec sudo $0 "$@"
+fi
+
+# Pick up sparsebundlefs and tmfs
+PATH=$PATH:$(dirname $0)
+export PATH
+
+SPARSEBUNDLEFS="$1"
+SPARSEBUNDLEFS=$(echo $SPARSEBUNDLEFS | sed -e 's#/*$##')
+
+DMGFS="${2:-/mnt/$(basename $SPARSEBUNDLEFS .sparsebundle).dmgfs}"
+DMGFS=$(echo $DMGFS | sed -e 's#/*$##')
+
+TMFS="${3:-$(dirname $DMGFS)/$(basename $DMGFS .dmgfs).tmfs}"
+TMFS=$(echo $TMFS | sed -e 's#/*$##')
+
+MNTPT="${4:-$(dirname $TMFS)/$(basename $TMFS .tmfs)}"
+MNTPT=$(echo $MNTPT | sed -e 's#/*$##')
+
+usage() {
+  echo "Usage: $0 SPARSEBUNDLE [DMGDIR [TMFS [MNTPT]]]"
+  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle"
+  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs"
+  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs"
+  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs /mnt/rabbit"
+}
+
+echodo() {
+  echo "$ $@"
+  $@
+}
+
+if [ ! -d "$SPARSEBUNDLEFS" ]; then
+  echo "Could not read '$SPARSEBUNDLEFS'"
+  exit 1
+fi
+if [ ! -d "$DMGFS" ]; then
+  echo "Could not read '$DMGFS'"
+  exit 1
+fi
+if [ ! -d "$TMFS" ]; then
+  echo "Could not read '$TMFS'"
+  exit 1
+fi
+if [ ! -d "$MNTPT" ]; then
+  echo "Could not read '$MNTPT'"
+  exit 1
+fi
+if [ "$SPARSEBUNDLEFS" = "$DMGFS" \
+    -o "$DMGFS" = "$TMFS" \
+    -o "$TMFS" = "$MNTPT" \
+    -o "$SPARSEBUNDLEFS" = "$MNTPT" ]; then
+  usage
+  exit 1
+fi
+
+DMG="$DMGFS/sparsebundle.dmg"
+if [ ! -e "$DMG" ]; then
+  echodo sparsebundlefs "$SPARSEBUNDLEFS" "$DMGFS"
+  if [ $? -ne 0 ]; then
+    exit $?
+  fi
+fi
+if [ ! -r "$DMG" ]; then
+  echo "Could not read '$DMG'"
+  exit 1
+fi
+
+LOOP=$(echodo losetup -j $DMG | grep ^/dev/loop)
+if [ $? -ne 0 ]; then
+  echodo parted "$DMG" unit B print
+  HFSX=$(parted -m "$DMG" unit B print | grep :hfsx:)
+  HFSX_TOOMANY=$(echo $HFSX | egrep -c ':hfsx:.*:hfsx:')
+  if [ $HFSX_TOOMANY -ne 0 ]; then
+    echo "Too many HFS partitions!"
+    echo $HFSX
+    exit 1
+  fi
+  HFSX_COUNT=$(echo $HFSX | fgrep -c ':hfsx:')
+  if [ $HFSX_COUNT -ne 1 ]; then
+    echo "No HFS partitions!"
+    echo $HFSX
+    exit 1
+  fi
+  START=$(echo $HFSX | cut -f2 -d: | cut -f1 -dB)
+  SIZE=$(echo $HFSX | cut -f4 -d: | cut -f1 -dB)
+  echodo losetup -r -f --offset $START --sizelimit $SIZE --show "$DMG"
+  LOOP=$(echodo losetup -j $DMG | grep ^/dev/loop)
+  if [ $? -ne 0 ]; then
+    echo "losetup failed"
+    exit 1
+  fi
+fi
+
+if [ ! -e "$TMFS/Backups.backupdb" ]; then
+  DEV=$(echo $LOOP | cut -f1 -d:)
+  echodo mount -o ro -t hfsplus "$DEV" "$TMFS"
+fi
+
+if [ -z "$(ls -1 $MNTPT)" ]; then
+  MNTPT_UID=${SUDO_UID:-$(id -u)}
+  MNTPT_GID=${SUDO_GID:-$(id -g)}
+  echodo tmfs $TMFS $MNTPT -ouid=$MNTPT_UID,gid=$MNTPT_GID,allow_other
+fi
