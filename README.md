@@ -1,14 +1,13 @@
 tmmount
 =======
 
-Are you using `netatalk` to run a Time Machine server on your Linux server?
-`tmmount` provides an easy mechanism for mounting and unmounting Time Machine
-sparse bundles in Linux.
+Are you using `netatalk` to run a Time Machine server on your Linux machine?
+`tmmount` provides an easy way to mount and unmount Time Machine sparse
+bundles.
 
 This project contains two scripts:
 
-* `tmmount` - mount a Time Machine sparse bundle for read-only browsing. It is
-  a layer on top of `sparsebundlefs` and `tmfs`
+* `tmmount` - mount a Time Machine sparse bundle for read-only browsing.
 * `tmumount` - unmount a Time Machine sparse bundle mounted by `tmmount`
 
 Credits
