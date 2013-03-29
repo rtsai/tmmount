@@ -4,9 +4,19 @@ if [ $(id -u) -ne 0 ]; then
   exec sudo $0 "$@"
 fi
 
-# Pick up sparsebundlefs and tmfs
-PATH=$PATH:$(dirname $0)
-export PATH
+usage() {
+  echo "Usage: $0 SPARSEBUNDLE [DMGDIR [TMFS [MNTPT]]]"
+  echo "Examples:"
+  echo "  \$ $0 /home/tm/tm1/rabbit.sparsebundle"
+  echo "  \$ $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs"
+  echo "  \$ $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs"
+  echo "  \$ $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs /mnt/rabbit"
+}
+
+if [ $# -eq 0 ]; then
+  usage
+  exit 1
+fi
 
 SPARSEBUNDLEFS="$1"
 SPARSEBUNDLEFS=$(echo $SPARSEBUNDLEFS | sed -e 's#/*$##')
@@ -20,13 +30,9 @@ TMFS=$(echo $TMFS | sed -e 's#/*$##')
 MNTPT="${4:-$(dirname $TMFS)/$(basename $TMFS .tmfs)}"
 MNTPT=$(echo $MNTPT | sed -e 's#/*$##')
 
-usage() {
-  echo "Usage: $0 SPARSEBUNDLE [DMGDIR [TMFS [MNTPT]]]"
-  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle"
-  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs"
-  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs"
-  echo "Example: $0 /home/tm/tm1/rabbit.sparsebundle /mnt/rabbit.dmgfs /mnt/rabbit.tmfs /mnt/rabbit"
-}
+# Pick up sparsebundlefs and tmfs
+PATH=$PATH:$(dirname $0)
+export PATH
 
 echodo() {
   echo "$ $@"

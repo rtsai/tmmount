@@ -4,6 +4,16 @@ if [ $(id -u) -ne 0 ]; then
   exec sudo $0 "$@"
 fi
 
+usage() {
+  echo "Usage: $0 MNTPT"
+  echo "Example: $0 /mnt/rabbit"
+}
+
+if [ $# -eq 0 ]; then
+  usage
+  exit 1
+fi
+
 MNTPT="$1"
 MNTPT=$(echo $MNTPT | sed -e 's#/*$##')
 
@@ -14,11 +24,6 @@ DMGFS="${3:-$(dirname $TMFS)/$(basename $TMFS .tmfs).dmgfs}"
 DMGFS=$(echo $DMGFS | sed -e 's#/*$##')
 
 DMG="$DMGFS/sparsebundle.dmg"
-
-usage() {
-  echo "Usage: $0 MNTPT"
-  echo "Example: $0 /mnt/rabbit"
-}
 
 echodo() {
   echo "$ $@"
